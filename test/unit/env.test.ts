@@ -28,4 +28,19 @@ describe('loadEnv', () => {
   it('rejects a missing DATABASE_URL', () => {
     expect(() => loadEnv({ JWT_ACCESS_SECRET: valid.JWT_ACCESS_SECRET })).toThrow(/DATABASE_URL/);
   });
+
+  it('rejects a wildcard CORS origin (SEC-02)', () => {
+    expect(() => loadEnv({ ...valid, CORS_ORIGINS: '*' })).toThrow(/CORS_ORIGINS must not include/);
+  });
+
+  it('rejects a wildcard mixed in with real origins', () => {
+    expect(() => loadEnv({ ...valid, CORS_ORIGINS: 'https://a.com,*' })).toThrow(
+      /CORS_ORIGINS must not include/,
+    );
+  });
+
+  it('still accepts a normal list of real origins', () => {
+    const env = loadEnv({ ...valid, CORS_ORIGINS: 'https://a.com,https://b.com' });
+    expect(env.CORS_ORIGINS).toEqual(['https://a.com', 'https://b.com']);
+  });
 });

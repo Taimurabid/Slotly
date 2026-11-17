@@ -1,7 +1,11 @@
 import { z } from 'zod';
 
+// `page` is capped (SEC-07): with no upper bound, a very large page number
+// produces a very large SQL OFFSET that Postgres still has to count past -
+// a deep-pagination performance issue, not a correctness one, but cheap to
+// just not allow.
 export const PaginationQuery = z.object({
-  page: z.coerce.number().int().min(1).default(1),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 

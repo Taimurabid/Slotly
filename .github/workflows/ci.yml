@@ -4,6 +4,13 @@ on:
   push:
   pull_request:
 
+# Least privilege (SEC-08): this workflow only reads the repo, builds, and
+# tests - it never publishes a package, comments on a PR, or deploys
+# anything, so the default token it gets should not be able to do more
+# than that either.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true

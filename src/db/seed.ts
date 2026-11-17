@@ -31,7 +31,30 @@ export function nextWeekday(targetDayOfWeek: number, minDaysAhead: number): stri
   return toDateString(result);
 }
 
+/**
+ * This script deletes all users and bookings unconditionally before
+ * reseeding. Refusing to run against a production environment is the only
+ * thing standing between a mistyped DATABASE_URL (or a leftover .env from
+ * a previous session) and irreversible data loss - see SEC-01 in
+ * docs/security/SECURITY_AUDIT_REPORT.md. Set ALLOW_SEED_DESTRUCTIVE_RESET=true
+ * to override, which should never be present in a real deployment's
+ * environment configuration.
+ */
+export function assertSafeToSeed(): void {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const overridden = process.env.ALLOW_SEED_DESTRUCTIVE_RESET === 'true';
+  if (isProduction && !overridden) {
+    throw new Error(
+      'Refusing to run the seed script with NODE_ENV=production: this deletes ' +
+        'all users and bookings. Set ALLOW_SEED_DESTRUCTIVE_RESET=true to override ' +
+        'if you really mean to wipe this database.',
+    );
+  }
+}
+
 export async function main() {
+  assertSafeToSeed();
+
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
     throw new Error('DATABASE_URL is required to run the seed script');

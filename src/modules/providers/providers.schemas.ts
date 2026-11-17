@@ -2,8 +2,13 @@ import { z } from 'zod';
 import { PaginationQuery, paginatedResponseSchema } from '../../lib/pagination.js';
 import { isValidTimeZone } from '../../lib/time.js';
 
+// The max() runs before the Intl.DateTimeFormat check in isValidTimeZone
+// (SEC-09): real IANA zone names are well under 100 characters, so this
+// costs nothing for legitimate input and avoids handing an unbounded
+// string to Intl internals.
 const timezoneField = z
   .string()
+  .max(100)
   .refine(isValidTimeZone, { message: 'Must be a valid IANA timezone, e.g. "America/New_York"' });
 
 export const CreateProviderBody = z.object({

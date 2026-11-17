@@ -17,6 +17,11 @@ const EnvSchema = z.object({
   JWT_ACCESS_TTL: z.string().default('15m'),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
 
+  // Rejecting a literal "*" is deliberate (SEC-02): @fastify/cors treats a
+  // wildcard inside an array of allowed origins as "allow everything," and
+  // this app registers CORS with `credentials: true` - allow-all plus
+  // credentials is exactly the misconfiguration that matters most to catch
+  // at boot, the same way JWT_ACCESS_SECRET's length is.
   CORS_ORIGINS: z
     .string()
     .default('http://localhost:5173')
@@ -25,7 +30,13 @@ const EnvSchema = z.object({
         .split(',')
         .map((origin) => origin.trim())
         .filter(Boolean),
-    ),
+    )
+    .refine((origins) => !origins.includes('*'), {
+      message:
+        'CORS_ORIGINS must not include "*" - list exact allowed origins instead. ' +
+        "A wildcard combined with this app's credentials:true CORS setting would " +
+        'allow any website to make credentialed requests.',
+    }),
 
   RATE_LIMIT_AUTH_MAX: z.coerce.number().int().positive().default(10),
 });
