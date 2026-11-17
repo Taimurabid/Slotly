@@ -10,6 +10,9 @@ export default defineConfig({
       DATABASE_URL:
         process.env.DATABASE_URL ?? 'postgres://slotly:slotly@localhost:5433/slotly_test',
       JWT_ACCESS_SECRET: 'test-secret-that-is-definitely-at-least-32-chars',
+      // High enough that a full test run never trips the auth rate limit
+      // itself; the rate-limit behavior is tested with its own low value.
+      RATE_LIMIT_AUTH_MAX: '1000',
     },
     coverage: {
       provider: 'v8',

@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import jwt from '@fastify/jwt';
+import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyServerOptions } from 'fastify';
 import {
   serializerCompiler,
@@ -9,13 +11,16 @@ import {
 } from 'fastify-type-provider-zod';
 import type { Env } from './config/env.js';
 import { createDb, type Database } from './db/client.js';
+import { authenticate } from './lib/auth.js';
 import { errorHandler, notFoundHandler } from './lib/errors.js';
+import { authRoutes } from './modules/auth/auth.routes.js';
 import { healthRoutes } from './modules/health/health.routes.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
     config: Env;
     db: Database;
+    authenticate: typeof authenticate;
   }
 }
 
@@ -68,6 +73,16 @@ export async function buildApp(env: Env) {
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   });
 
+  await app.register(jwt, {
+    secret: env.JWT_ACCESS_SECRET,
+    sign: { expiresIn: env.JWT_ACCESS_TTL },
+  });
+  app.decorate('authenticate', authenticate);
+
+  // Rate limiting is off by default (`global: false`) and opted into per
+  // route via `config.rateLimit`, so only auth routes pay for it.
+  await app.register(rateLimit, { global: false });
+
   app.addHook('onSend', async (request, reply) => {
     void reply.header('x-request-id', request.id);
   });
@@ -76,6 +91,7 @@ export async function buildApp(env: Env) {
   app.setNotFoundHandler(notFoundHandler);
 
   await app.register(healthRoutes);
+  await app.register(authRoutes);
 
   return app;
 }

@@ -1,4 +1,5 @@
 import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
+import { z } from 'zod';
 
 /**
  * Every error response has the same shape:
@@ -15,6 +16,15 @@ export interface ErrorBody {
     details?: unknown;
   };
 }
+
+/** Zod counterpart of `ErrorBody`, for routes to declare in their error response schemas. */
+export const ErrorBodySchema = z.object({
+  error: z.object({
+    code: z.string(),
+    message: z.string(),
+    details: z.unknown().optional(),
+  }),
+});
 
 /** An error we throw on purpose, from services, with a known status and code. */
 export class AppError extends Error {
