@@ -21,6 +21,7 @@
     "test:coverage": "vitest run --coverage",
     "db:generate": "node --env-file-if-exists=.env node_modules/.bin/drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env node_modules/.bin/tsx src/db/migrate.ts",
+    "db:seed": "node --env-file-if-exists=.env node_modules/.bin/tsx src/db/seed.ts",
     "db:studio": "node --env-file-if-exists=.env node_modules/.bin/drizzle-kit studio"
   },
   "dependencies": {
