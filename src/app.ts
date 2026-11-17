@@ -14,7 +14,9 @@ import { createDb, type Database } from './db/client.js';
 import { authenticate } from './lib/auth.js';
 import { errorHandler, notFoundHandler } from './lib/errors.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
+import { availabilityRoutes } from './modules/availability/availability.routes.js';
 import { healthRoutes } from './modules/health/health.routes.js';
+import { providerRoutes } from './modules/providers/providers.routes.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -92,6 +94,8 @@ export async function buildApp(env: Env) {
 
   await app.register(healthRoutes);
   await app.register(authRoutes);
+  await app.register(providerRoutes);
+  await app.register(availabilityRoutes);
 
   return app;
 }
