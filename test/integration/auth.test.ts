@@ -184,4 +184,65 @@ describe('auth', () => {
         .expect(204);
     });
   });
+
+  describe('POST /auth/logout-all (SEC-06)', () => {
+    it('revokes every refresh token for the caller, not just one', async () => {
+      const email = uniqueEmail();
+      const register = await request(app.server)
+        .post('/auth/register')
+        .send({ email, password: 'a-good-password', role: 'customer' });
+      const refreshTokenA = register.body.refreshToken as string;
+      const accessToken = register.body.accessToken as string;
+
+      // A second login issues a second, independent refresh token for the
+      // same account - simulating a second device/browser session.
+      const login = await request(app.server)
+        .post('/auth/login')
+        .send({ email, password: 'a-good-password' });
+      const refreshTokenB = login.body.refreshToken as string;
+
+      await request(app.server)
+        .post('/auth/logout-all')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(204);
+
+      const resA = await request(app.server)
+        .post('/auth/refresh')
+        .send({ refreshToken: refreshTokenA })
+        .expect(401);
+      expect(resA.body.error.code).toBe('UNAUTHORIZED');
+
+      const resB = await request(app.server)
+        .post('/auth/refresh')
+        .send({ refreshToken: refreshTokenB })
+        .expect(401);
+      expect(resB.body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('rejects an unauthenticated request', async () => {
+      await request(app.server).post('/auth/logout-all').expect(401);
+    });
+
+    it("does not revoke another user's refresh tokens", async () => {
+      const otherRegister = await request(app.server)
+        .post('/auth/register')
+        .send({ email: uniqueEmail(), password: 'a-good-password', role: 'customer' });
+      const otherRefreshToken = otherRegister.body.refreshToken as string;
+
+      const callerRegister = await request(app.server)
+        .post('/auth/register')
+        .send({ email: uniqueEmail(), password: 'a-good-password', role: 'customer' });
+      const callerAccessToken = callerRegister.body.accessToken as string;
+
+      await request(app.server)
+        .post('/auth/logout-all')
+        .set('Authorization', `Bearer ${callerAccessToken}`)
+        .expect(204);
+
+      await request(app.server)
+        .post('/auth/refresh')
+        .send({ refreshToken: otherRefreshToken })
+        .expect(200);
+    });
+  });
 });

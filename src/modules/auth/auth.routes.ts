@@ -1,4 +1,5 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import { BEARER_AUTH_SECURITY } from '../../lib/auth.js';
 import { ErrorBodySchema } from '../../lib/errors.js';
 import {
   AuthResponse,
@@ -10,6 +11,7 @@ import {
 } from './auth.schemas.js';
 import {
   issueRefreshToken,
+  logoutAllSessions,
   registerUser,
   revokeRefreshToken,
   rotateRefreshToken,
@@ -102,6 +104,23 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
     },
     async (request, reply) => {
       await revokeRefreshToken(app.db, request.body.refreshToken);
+      return reply.status(204).send();
+    },
+  );
+
+  app.post(
+    '/auth/logout-all',
+    {
+      schema: {
+        tags: ['auth'],
+        summary: 'Revoke every refresh token for the caller (log out everywhere)',
+        security: BEARER_AUTH_SECURITY,
+      },
+      config: rateLimitConfig,
+      preHandler: [app.authenticate],
+    },
+    async (request, reply) => {
+      await logoutAllSessions(app.db, request.user.sub);
       return reply.status(204).send();
     },
   );

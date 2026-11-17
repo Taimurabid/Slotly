@@ -12,6 +12,7 @@ import {
   findUserByEmail,
   insertRefreshToken,
   insertUser,
+  revokeAllRefreshTokensForUser,
   revokeRefreshTokenByHash,
   revokeRefreshTokenById,
 } from './auth.repository.js';
@@ -92,4 +93,14 @@ export async function rotateRefreshToken(
 /** Revoking an unknown or already-revoked token is not an error: logout is idempotent. */
 export async function revokeRefreshToken(db: Database, token: string): Promise<void> {
   await revokeRefreshTokenByHash(db, hashRefreshToken(token));
+}
+
+/**
+ * SEC-06: revokes every refresh token belonging to a user, not just the one
+ * presented. For "log out everywhere" / "I think my account is
+ * compromised" - unlike /auth/logout, this is authenticated by access
+ * token (the caller doesn't need to have a specific refresh token on hand).
+ */
+export async function logoutAllSessions(db: Database, userId: string): Promise<void> {
+  await revokeAllRefreshTokensForUser(db, userId);
 }

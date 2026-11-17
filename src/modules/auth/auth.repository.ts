@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import type { Database } from '../../db/client.js';
 import { refreshTokens } from '../../db/schema/refresh-tokens.js';
 import { users, type NewUser, type User } from '../../db/schema/users.js';
@@ -55,4 +55,12 @@ export async function revokeRefreshTokenByHash(db: Database, tokenHash: string):
     .update(refreshTokens)
     .set({ revokedAt: new Date() })
     .where(eq(refreshTokens.tokenHash, tokenHash));
+}
+
+/** SEC-06: revokes every refresh token for a user ("log out everywhere"). */
+export async function revokeAllRefreshTokensForUser(db: Database, userId: string): Promise<void> {
+  await db
+    .update(refreshTokens)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(refreshTokens.userId, userId), isNull(refreshTokens.revokedAt)));
 }
