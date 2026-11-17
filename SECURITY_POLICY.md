@@ -21,6 +21,15 @@ references to verify any claim here against the real code.
 - `/auth/login` and `/auth/register` return the identical error for "wrong
   password" and "no such email," so a response never confirms whether a
   given email has an account.
+- **Per-account lockout**: 5 consecutive failed logins locks the account
+  for 15 minutes (`users.failed_login_attempts`/`locked_until`,
+  `verifyCredentials` in `src/modules/auth/auth.service.ts`), independent
+  of the existing per-IP rate limit on `/auth/login`. A locked account gets
+  the identical error message as a wrong password - no distinct "account
+  locked" response that would let an attacker confirm the account exists.
+- `POST /auth/logout-all` revokes every refresh token for the caller at
+  once ("log out everywhere"), authenticated by access token rather than
+  requiring a specific refresh token.
 
 ## Authorization
 
@@ -51,7 +60,11 @@ references to verify any claim here against the real code.
 - `@fastify/helmet` is registered for every response (secure defaults:
   `X-Content-Type-Options`, etc.).
 - CORS is an explicit origin allowlist (`CORS_ORIGINS`), not a wildcard,
-  and credentials are only sent to allowed origins.
+  and credentials are only sent to allowed origins. A literal `*` in
+  `CORS_ORIGINS` is rejected at boot (`src/config/env.ts`), the same way an
+  undersized JWT secret is - `@fastify/cors` treats a wildcard inside an
+  allowed-origins array as allow-everything, which combined with this
+  app's `credentials: true` would be a real gap if ever set that way.
 - `Authorization` and `Cookie` headers are redacted from request logs
   (`src/app.ts`), so a log aggregator never captures a live credential.
 
@@ -77,25 +90,26 @@ oversights discovered after the fact:
 - **No email verification.** `/auth/register` creates a usable account
   immediately. Fine for a portfolio/demo API; not fine for a real product
   without it.
-- **No account lockout.** Repeated failed logins are only slowed by the
-  generic auth rate limit, not specifically tracked or locked per account.
+- **No password reset flow.** There is no self-service recovery if a user
+  forgets their password - the vulnerability class OWASP flags for
+  password-reset flows doesn't apply because the feature doesn't exist yet,
+  which is the correct thing to say about it rather than silently omitting
+  it. See `docs/security/SECURITY_AUDIT_REPORT.md` (SEC-05).
 - **No 2FA.**
 - **Refresh tokens aren't bound to a device or IP.** A stolen refresh token
-  is usable from anywhere until it's next rotated or its 30-day TTL expires.
+  is usable from anywhere until it's next rotated, its 30-day TTL expires,
+  or the account owner calls `POST /auth/logout-all`.
 - **No automated dependency vulnerability scanning in CI.** `npm audit`
-  currently reports 13 findings. Most (minimatch, tinypool, via vitest's
-  own dependency tree) are dev/test tooling, not shipped in the production
-  image. One is in a production dependency and is specific enough to name
-  precisely rather than wave at: `zod <4.6.6` has
-  [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5)
-  (memory exhaustion validating oversized constrained collections) - and
-  zod validates every request body here, so this is a plausible, not just
-  theoretical, DoS surface. Not yet fixed because the fix is a real breaking
-  change, not a patch bump: it requires zod 3→4 across every schema in
-  `src/`, and `fastify-type-provider-zod` 4→7 to get a zod-4-compatible
-  version. Tracked in [`TASKS.md`](TASKS.md).
+  currently reports 11 findings, all in dev/test tooling (vitest's own
+  dependency tree - minimatch, tinypool), none shipped in the production
+  image; `npm audit --omit=dev` reports zero. The one production-dependency
+  finding this list used to carry (`zod <4.6.6`,
+  [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5))
+  was fixed by upgrading zod 3→4 and `fastify-type-provider-zod` 4→7 - see
+  `docs/security/SECURITY_REMEDIATION_LOG.md` (SEC-03).
 - **No structured security event logging** (failed-login patterns, repeated
-  403s) beyond the standard request logs.
+  403s) beyond the standard request logs and the account-lockout state
+  itself (`users.failed_login_attempts`).
 - **CSRF is not applicable** as currently built (bearer-token auth, no
   cookies, no browser-session state), but would need revisiting if a
   cookie-based web frontend is added later.

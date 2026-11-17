@@ -19,26 +19,17 @@ verification (tests + a production Docker smoke test); see
 7. OpenAPI 3 spec + Swagger UI at `/docs`
 8. Seed script
 9. README, deployment docs, and this documentation set
+10. Security audit ([`docs/security/SECURITY_AUDIT_REPORT.md`](docs/security/SECURITY_AUDIT_REPORT.md))
+    and remediation of all 8 actionable findings
+    ([`docs/security/SECURITY_REMEDIATION_LOG.md`](docs/security/SECURITY_REMEDIATION_LOG.md)) -
+    including the zod 3→4 upgrade below, which started as a backlog item
+    here and was pulled forward once the audit formally classified it as
+    SEC-03.
 
 ## Backlog
 
 Not started. Ordered roughly by what would matter most for turning this
 from a portfolio API into something closer to shippable.
-
-### Upgrade zod (3→4) and fastify-type-provider-zod (4→7)
-
-- **Why:** `zod <4.6.6` has a real, high-severity memory-exhaustion
-  advisory ([GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5))
-  reachable through this app's own request validation. See
-  [`SECURITY_POLICY.md`](SECURITY_POLICY.md).
-- **Scope:** every `*.schemas.ts` file in `src/modules/*/`, plus
-  `src/lib/errors.ts` and `src/lib/pagination.ts`. Zod v4 has real API
-  differences from v3 (error-map shape, `.datetime()` options, how
-  `.refine()` composes), so this needs a careful pass, not a version bump
-  and a prayer.
-- **Acceptance criteria:** `npm audit --omit=dev` reports zero findings;
-  full test suite (107+ tests) passes unchanged; `/docs/json` still
-  generates a valid OpenAPI document with no schema regressions.
 
 ### Multi-instance migration locking
 
