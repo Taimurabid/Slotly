@@ -15,6 +15,7 @@ import { authenticate } from './lib/auth.js';
 import { errorHandler, notFoundHandler } from './lib/errors.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { availabilityRoutes } from './modules/availability/availability.routes.js';
+import { bookingRoutes } from './modules/bookings/bookings.routes.js';
 import { healthRoutes } from './modules/health/health.routes.js';
 import { providerRoutes } from './modules/providers/providers.routes.js';
 import { slotsRoutes } from './modules/slots/slots.routes.js';
@@ -98,6 +99,7 @@ export async function buildApp(env: Env) {
   await app.register(providerRoutes);
   await app.register(availabilityRoutes);
   await app.register(slotsRoutes);
+  await app.register(bookingRoutes);
 
   return app;
 }
