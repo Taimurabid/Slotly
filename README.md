@@ -184,6 +184,8 @@ password hashing, refresh token design, ownership enforcement) are in
 
 - [`ARCHITECTURE_DECISIONS.md`](ARCHITECTURE_DECISIONS.md) - the reasoning above, in full, plus more
 - [`SECURITY_POLICY.md`](SECURITY_POLICY.md) - what's implemented, and an honest list of what isn't yet
+- [`docs/security/SECURITY_AUDIT_REPORT.md`](docs/security/SECURITY_AUDIT_REPORT.md) - a full manual security audit (11 findings, 0 critical, 1 high) with evidence from actually testing the running app, not just reading the code
+- [`docs/security/SECURITY_REMEDIATION_LOG.md`](docs/security/SECURITY_REMEDIATION_LOG.md) - tracks each audit finding from identification to verified fix
 - [`ERROR_HANDLING.md`](ERROR_HANDLING.md) - every error code the API can return, and why
 - [`TASKS.md`](TASKS.md) - completed work and the structured backlog (what I'd add next, and why)
 - [`CHANGELOG.md`](CHANGELOG.md) - version history
