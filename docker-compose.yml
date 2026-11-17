@@ -1,0 +1,58 @@
+services:
+  # Development database
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: slotly
+      POSTGRES_PASSWORD: slotly
+      POSTGRES_DB: slotly
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U slotly -d slotly']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Throwaway database for integration tests. Data lives in RAM (tmpfs),
+  # so it is fast and starts clean on every `docker compose up`.
+  db-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: slotly
+      POSTGRES_PASSWORD: slotly
+      POSTGRES_DB: slotly_test
+    ports:
+      - '5433:5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U slotly -d slotly_test']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      target: dev
+    env_file: .env
+    environment:
+      # Inside the compose network the database host is "db", not localhost.
+      DATABASE_URL: postgres://slotly:slotly@db:5432/slotly
+    # Migrations run before the server starts so local dev always has an
+    # up-to-date schema without a manual step.
+    command: sh -c "npm run db:migrate && npm run dev"
+    ports:
+      - '3000:3000'
+    volumes:
+      # Live-reload: edits on your machine are picked up by tsx watch.
+      - ./src:/app/src
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
