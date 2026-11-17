@@ -1,4 +1,4 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { Database } from '../../db/client.js';
 import { refreshTokens } from '../../db/schema/refresh-tokens.js';
 import { users, type NewUser, type User } from '../../db/schema/users.js';
@@ -63,4 +63,29 @@ export async function revokeAllRefreshTokensForUser(db: Database, userId: string
     .update(refreshTokens)
     .set({ revokedAt: new Date() })
     .where(and(eq(refreshTokens.userId, userId), isNull(refreshTokens.revokedAt)));
+}
+
+/**
+ * SEC-04: atomically increments the failed-login counter (a relative SQL
+ * update, not read-then-write in JS, so concurrent failed attempts can't
+ * undercount each other) and returns the new value.
+ */
+export async function incrementFailedLoginAttempts(db: Database, userId: string): Promise<number> {
+  const [row] = await db
+    .update(users)
+    .set({ failedLoginAttempts: sql`${users.failedLoginAttempts} + 1` })
+    .where(eq(users.id, userId))
+    .returning({ failedLoginAttempts: users.failedLoginAttempts });
+  return row?.failedLoginAttempts ?? 0;
+}
+
+export async function lockAccountUntil(db: Database, userId: string, until: Date): Promise<void> {
+  await db.update(users).set({ lockedUntil: until }).where(eq(users.id, userId));
+}
+
+export async function resetFailedLoginAttempts(db: Database, userId: string): Promise<void> {
+  await db
+    .update(users)
+    .set({ failedLoginAttempts: 0, lockedUntil: null })
+    .where(eq(users.id, userId));
 }

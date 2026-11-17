@@ -15,6 +15,13 @@
       "when": 1794928604516,
       "tag": "0001_bookings_no_overlap_exclusion",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794935208894,
+      "tag": "0002_lumpy_nomad",
+      "breakpoints": true
     }
   ]
 }

@@ -10,8 +10,11 @@ import type { User, UserRole } from '../../db/schema/users.js';
 import {
   findRefreshTokenByHash,
   findUserByEmail,
+  incrementFailedLoginAttempts,
   insertRefreshToken,
   insertUser,
+  lockAccountUntil,
+  resetFailedLoginAttempts,
   revokeAllRefreshTokensForUser,
   revokeRefreshTokenByHash,
   revokeRefreshTokenById,
@@ -32,17 +35,44 @@ export async function registerUser(db: Database, input: RegisterInput): Promise<
   return insertUser(db, { email: input.email, passwordHash, role: input.role });
 }
 
+// SEC-04: per-account lockout, independent of the existing per-IP rate
+// limit on /auth/login. 5 consecutive failures locks the account for 15
+// minutes; a successful login resets the counter.
+const MAX_FAILED_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
+
+/**
+ * The response is identical - "Invalid email or password" - whether the
+ * account doesn't exist, the password is wrong, or the account is
+ * currently locked. Returning a distinct "this account is locked" message
+ * would let an attacker distinguish "exists and is locked" from "doesn't
+ * exist," reintroducing the account-enumeration problem this error message
+ * already avoids for the unknown-email and wrong-password cases.
+ */
 export async function verifyCredentials(
   db: Database,
   email: string,
   password: string,
+  now = new Date(),
 ): Promise<User> {
   const user = await findUserByEmail(db, email);
-  // Same error for "no such user" and "wrong password", so the response
-  // never reveals whether an email is registered.
-  if (!user || !(await verifyPassword(user.passwordHash, password))) {
+  if (!user) {
     throw AppError.unauthorized('Invalid email or password');
   }
+
+  if (user.lockedUntil && user.lockedUntil.getTime() > now.getTime()) {
+    throw AppError.unauthorized('Invalid email or password');
+  }
+
+  if (!(await verifyPassword(user.passwordHash, password))) {
+    const attempts = await incrementFailedLoginAttempts(db, user.id);
+    if (attempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
+      await lockAccountUntil(db, user.id, new Date(now.getTime() + LOCKOUT_DURATION_MS));
+    }
+    throw AppError.unauthorized('Invalid email or password');
+  }
+
+  await resetFailedLoginAttempts(db, user.id);
   return user;
 }
 
