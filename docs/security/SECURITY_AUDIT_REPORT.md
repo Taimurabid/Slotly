@@ -8,6 +8,12 @@
 | **Commit audited** | `bc7321e` ("Apply UPEF documentation framework...")                                                                                                                            |
 | **Related docs**   | [`SECURITY_POLICY.md`](../../SECURITY_POLICY.md), [`ARCHITECTURE_DECISIONS.md`](../../ARCHITECTURE_DECISIONS.md), [`SECURITY_REMEDIATION_LOG.md`](SECURITY_REMEDIATION_LOG.md) |
 
+> **Status update (2026-11-17, same day):** all 8 actionable findings below
+> (SEC-01 through SEC-04, SEC-06 through SEC-09) have since been fixed and
+> verified. This report is left as originally written - it's the record of
+> what the audit found at the time, not a running status page. For current
+> status, see [`SECURITY_REMEDIATION_LOG.md`](SECURITY_REMEDIATION_LOG.md).
+
 ## Executive Summary
 
 Slotly is a small, single-service REST API (Fastify + Postgres) with no
@@ -421,11 +427,18 @@ Verified, not assumed:
 
 ## Unresolved Risks
 
-- SEC-01 through SEC-09 above, all unresolved as of this report.
-- No automated dependency scanning runs in CI - findings like SEC-03 are
-  currently only caught by someone manually running `npm audit`.
+As originally written, this audit found SEC-01 through SEC-09 unresolved.
+See the status update at the top of this report and
+[`SECURITY_REMEDIATION_LOG.md`](SECURITY_REMEDIATION_LOG.md) for what has
+since changed. Risks that remain regardless of individual finding fixes:
+
+- No automated dependency scanning runs in CI - a future finding like
+  SEC-03 would again only be caught by someone manually running
+  `npm audit`, not automatically.
 - No backup/disaster-recovery plan exists yet for the intended production
-  database (Neon) - relevant context for why SEC-01's blast radius matters.
+  database (Neon) - relevant context for why SEC-01's blast radius mattered,
+  and still relevant for any future destructive-operation mistake SEC-01's
+  specific guard doesn't happen to cover.
 
 ## Testing Limitations
 
