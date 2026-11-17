@@ -158,60 +158,34 @@ same environment variables, `db:migrate` run once per schema change).
 
 ## Design decisions
 
-**Why Fastify.** Request/response validation and serialization are built in
-and schema-driven (here, from Zod via `fastify-type-provider-zod`), rather than
-assembled from several separate Express middlewares. That's also what makes
-`/docs` possible without a second, hand-maintained copy of the API contract:
-the same Zod schemas validate requests, shape responses, and generate the
-OpenAPI document. Plugin encapsulation (each `register()` call gets its own
-scope unless explicitly broken out of) keeps modules from leaking decorators
-into each other by accident. It's also simply fast, with a large production
-track record.
+Three worth knowing before reading the code:
 
-**Why the exclusion constraint, not just an application-level check.** Two
-customers can request the same slot close enough in time that an
-application-level "is this slot free?" check passes for both before either
-has written anything - that race is exactly what step 6 found: naive
-`SELECT`-then-`INSERT` logic cannot close it, no matter how carefully it's
-written, because the check and the write aren't atomic across two separate
-requests. Postgres's `EXCLUDE USING gist` constraint on `bookings` (enabled by
-`btree_gist`, see `src/db/migrations/0001_bookings_no_overlap_exclusion.sql`)
-makes the database itself the authority: only one overlapping INSERT can ever
-commit, full stop. The application still does a friendly pre-check first (so
-the common case gets a clear, specific error), but the constraint is what
-actually guarantees correctness - proven in
-`test/integration/bookings-concurrency.test.ts`, which fires 10 simultaneous
-booking requests at one slot and asserts exactly one succeeds. Verifying this
-against the real production Docker image with genuinely concurrent OS
-processes (not just `Promise.all` in one Node process) surfaced a further
-subtlety: under write contention, Postgres sometimes reports a losing
-transaction as `deadlock_detected` rather than `exclusion_violation` - a
-documented property of GiST exclusion constraints under load, and just as
-safe to treat as "lost the race," since a deadlock victim is automatically
-rolled back having done no work.
+- **Fastify**, because request validation, response serialization, and the
+  `/docs` OpenAPI generation all run off the same Zod schemas - one
+  contract, not three that can drift apart.
+- **A Postgres `EXCLUDE USING gist` constraint, not just an app-level
+  check**, is what actually makes double-booking impossible. The app still
+  pre-checks for a friendly error, but only the database can make the
+  INSERT atomic across two concurrent requests - proven in
+  `test/integration/bookings-concurrency.test.ts`, and the full story
+  (including a real `deadlock_detected` edge case found while verifying it
+  against the production image) is worth reading.
+- **Timezones are IANA zone names, never fixed offsets**, because an offset
+  is wrong half the year under DST. Weekly rules store provider-local
+  minutes-from-midnight (a wall-clock pattern); blocks and bookings store
+  absolute UTC (a concrete instant). DST is resolved by looking up the
+  zone's real offset at the specific calendar date, not assumed.
 
-**How timezones are handled.** A provider's timezone is stored as an IANA zone
-name (`America/New_York`), never a fixed UTC offset, because the offset itself
-changes twice a year under DST. That split shows up in the schema: a weekly
-recurring rule (`availability_rules`) is a wall-clock pattern - "every Monday
-at 9am local" - so it's stored as provider-local minutes-from-midnight, not a
-UTC instant, because a UTC instant doesn't exist yet until you pick an actual
-calendar date. A one-off block or a booking refers to one concrete span of
-time, so those are stored as absolute UTC timestamps. Converting a rule into a
-concrete UTC instant for a given date (`zonedTimeToUtc` in `src/lib/time.ts`)
-is where DST actually gets resolved: it looks up the zone's real UTC offset at
-that specific date via `Intl.DateTimeFormat`, so the same "9:00 AM" rule
-correctly lands on different UTC instants on either side of a DST transition.
-This is verified against real 2026 DST transition dates in both directions,
-plus a southern-hemisphere zone where the transition direction is reversed.
+Full reasoning, alternatives considered, and more decisions (ORM choice,
+password hashing, refresh token design, ownership enforcement) are in
+[`ARCHITECTURE_DECISIONS.md`](ARCHITECTURE_DECISIONS.md).
 
-**What I'd add next.**
+## Other documentation
 
-- Multi-instance migration locking (a Postgres advisory lock around
-  `db:migrate`), for deploying with more than one API instance at a time.
-- Payments (Stripe) at booking time, with a webhook-driven booking status.
-- Provider reviews/ratings, and a notification (email) on booking/cancellation.
-- Recurring bookings (a customer booking the same weekly slot indefinitely).
-- Structured tracing/metrics (OpenTelemetry) beyond the current request logs,
-  and a load test specifically targeting the exclusion constraint's behavior
-  under much higher write concurrency than the current 10-request test.
+- [`ARCHITECTURE_DECISIONS.md`](ARCHITECTURE_DECISIONS.md) - the reasoning above, in full, plus more
+- [`SECURITY_POLICY.md`](SECURITY_POLICY.md) - what's implemented, and an honest list of what isn't yet
+- [`ERROR_HANDLING.md`](ERROR_HANDLING.md) - every error code the API can return, and why
+- [`TASKS.md`](TASKS.md) - completed work and the structured backlog (what I'd add next, and why)
+- [`CHANGELOG.md`](CHANGELOG.md) - version history
+- [`AI_CONTEXT.md`](AI_CONTEXT.md) - orientation for an AI agent (or a new contributor) picking this up cold
+- [`MASTER_PROJECT_INSTRUCTIONS.md`](MASTER_PROJECT_INSTRUCTIONS.md) - the engineering framework this documentation set follows
