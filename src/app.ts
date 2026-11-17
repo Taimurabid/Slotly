@@ -1,10 +1,14 @@
+import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import jwt from '@fastify/jwt';
 import rateLimit from '@fastify/rate-limit';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
 import Fastify, { type FastifyServerOptions } from 'fastify';
 import {
+  jsonSchemaTransform,
   serializerCompiler,
   validatorCompiler,
   type ZodTypeProvider,
@@ -27,6 +31,12 @@ declare module 'fastify' {
     authenticate: typeof authenticate;
   }
 }
+
+// ESM has no JSON import without an import-attribute assertion; createRequire
+// is the simplest way to read package.json's version for the OpenAPI doc
+// without that ceremony or letting the version drift by hardcoding it.
+const require = createRequire(import.meta.url);
+const packageJson = require('../package.json') as { version: string };
 
 function loggerOptions(env: Env): FastifyServerOptions['logger'] {
   if (env.NODE_ENV === 'test') return false;
@@ -86,6 +96,26 @@ export async function buildApp(env: Env) {
   // Rate limiting is off by default (`global: false`) and opted into per
   // route via `config.rateLimit`, so only auth routes pay for it.
   await app.register(rateLimit, { global: false });
+
+  // The OpenAPI document is generated from the same Zod schemas that
+  // validate requests and shape responses (via jsonSchemaTransform), so the
+  // contract and the docs can't drift apart.
+  await app.register(swagger, {
+    openapi: {
+      info: {
+        title: 'Slotly API',
+        description: 'Booking API: providers publish availability, customers book time slots.',
+        version: packageJson.version,
+      },
+      components: {
+        securitySchemes: {
+          bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+        },
+      },
+    },
+    transform: jsonSchemaTransform,
+  });
+  await app.register(swaggerUi, { routePrefix: '/docs' });
 
   app.addHook('onSend', async (request, reply) => {
     void reply.header('x-request-id', request.id);

@@ -39,6 +39,9 @@ export function hashRefreshToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
+/** OpenAPI security requirement for routes behind `authenticate`, so Swagger UI shows the lock icon and its "Authorize" button works against them. */
+export const BEARER_AUTH_SECURITY = [{ bearerAuth: [] }];
+
 /** Fastify preHandler: rejects the request unless it has a valid access token. */
 export async function authenticate(request: FastifyRequest, _reply: FastifyReply): Promise<void> {
   try {

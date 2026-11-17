@@ -1,6 +1,6 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { AvailabilityRule, BlockedSlot } from '../../db/schema/availability.js';
-import { requireRole } from '../../lib/auth.js';
+import { BEARER_AUTH_SECURITY, requireRole } from '../../lib/auth.js';
 import { ErrorBodySchema } from '../../lib/errors.js';
 import { ProviderIdParams } from '../providers/providers.schemas.js';
 import { getProviderProfile } from '../providers/providers.service.js';
@@ -53,6 +53,7 @@ export const availabilityRoutes: FastifyPluginAsyncZod = async (app) => {
         summary: 'Add a weekly recurring availability rule',
         body: AvailabilityRuleBody,
         response: { 201: AvailabilityRulePublic, 404: ErrorBodySchema },
+        security: BEARER_AUTH_SECURITY,
       },
       preHandler: [app.authenticate, requireRole('provider')],
     },
@@ -86,6 +87,7 @@ export const availabilityRoutes: FastifyPluginAsyncZod = async (app) => {
         tags: ['availability'],
         summary: 'Remove an availability rule',
         params: RuleIdParams,
+        security: BEARER_AUTH_SECURITY,
       },
       preHandler: [app.authenticate, requireRole('provider')],
     },
@@ -103,6 +105,7 @@ export const availabilityRoutes: FastifyPluginAsyncZod = async (app) => {
         summary: 'Add a one-off blocked date/time range',
         body: BlockedSlotBody,
         response: { 201: BlockedSlotPublic, 404: ErrorBodySchema },
+        security: BEARER_AUTH_SECURITY,
       },
       preHandler: [app.authenticate, requireRole('provider')],
     },
@@ -137,6 +140,7 @@ export const availabilityRoutes: FastifyPluginAsyncZod = async (app) => {
         tags: ['availability'],
         summary: 'Remove a one-off blocked date/time range',
         params: BlockIdParams,
+        security: BEARER_AUTH_SECURITY,
       },
       preHandler: [app.authenticate, requireRole('provider')],
     },

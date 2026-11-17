@@ -1,6 +1,6 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { Booking } from '../../db/schema/bookings.js';
-import { requireRole } from '../../lib/auth.js';
+import { BEARER_AUTH_SECURITY, requireRole } from '../../lib/auth.js';
 import { ErrorBodySchema } from '../../lib/errors.js';
 import {
   BookingIdParams,
@@ -42,6 +42,7 @@ export const bookingRoutes: FastifyPluginAsyncZod = async (app) => {
           404: ErrorBodySchema,
           409: ErrorBodySchema,
         },
+        security: BEARER_AUTH_SECURITY,
       },
       preHandler: [app.authenticate, requireRole('customer')],
     },
@@ -59,6 +60,7 @@ export const bookingRoutes: FastifyPluginAsyncZod = async (app) => {
         summary: "List the caller's own bookings",
         querystring: BookingListQuery,
         response: { 200: BookingListResponse },
+        security: BEARER_AUTH_SECURITY,
       },
       preHandler: [app.authenticate, requireRole('customer')],
     },
@@ -76,6 +78,7 @@ export const bookingRoutes: FastifyPluginAsyncZod = async (app) => {
         summary: "List bookings for the caller's own provider profile",
         querystring: BookingListQuery,
         response: { 200: BookingListResponse, 404: ErrorBodySchema },
+        security: BEARER_AUTH_SECURITY,
       },
       preHandler: [app.authenticate, requireRole('provider')],
     },
@@ -93,6 +96,7 @@ export const bookingRoutes: FastifyPluginAsyncZod = async (app) => {
         summary: 'Cancel a booking (must be more than 24 hours before its start time)',
         params: BookingIdParams,
         response: { 200: BookingPublic, 404: ErrorBodySchema, 409: ErrorBodySchema },
+        security: BEARER_AUTH_SECURITY,
       },
       preHandler: [app.authenticate, requireRole('customer')],
     },

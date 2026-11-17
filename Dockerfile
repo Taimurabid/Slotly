@@ -32,7 +32,12 @@ FROM base AS runtime
 ENV NODE_ENV=production
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
-COPY package.json ./
+# --chown matters here specifically: this file is copied straight from the
+# host build context, so it keeps whatever restrictive host permissions it
+# had (e.g. a 600 umask); node_modules/dist above come from earlier stages
+# that ran as root and don't have that problem. Without --chown, the node
+# user below can't read it.
+COPY --chown=node:node package.json ./
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \

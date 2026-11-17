@@ -1,6 +1,6 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { ProviderProfile } from '../../db/schema/providers.js';
-import { requireRole } from '../../lib/auth.js';
+import { BEARER_AUTH_SECURITY, requireRole } from '../../lib/auth.js';
 import { ErrorBodySchema } from '../../lib/errors.js';
 import {
   CreateProviderBody,
@@ -40,6 +40,7 @@ export const providerRoutes: FastifyPluginAsyncZod = async (app) => {
         summary: 'Create your provider profile',
         body: CreateProviderBody,
         response: { 201: ProviderPublic, 409: ErrorBodySchema },
+        security: BEARER_AUTH_SECURITY,
       },
       preHandler: [app.authenticate, requireRole('provider')],
     },
@@ -57,6 +58,7 @@ export const providerRoutes: FastifyPluginAsyncZod = async (app) => {
         summary: 'Update your provider profile',
         body: UpdateProviderBody,
         response: { 200: ProviderPublic, 404: ErrorBodySchema },
+        security: BEARER_AUTH_SECURITY,
       },
       preHandler: [app.authenticate, requireRole('provider')],
     },
@@ -73,6 +75,7 @@ export const providerRoutes: FastifyPluginAsyncZod = async (app) => {
         tags: ['providers'],
         summary: 'Get your own provider profile',
         response: { 200: ProviderPublic, 404: ErrorBodySchema },
+        security: BEARER_AUTH_SECURITY,
       },
       preHandler: [app.authenticate, requireRole('provider')],
     },
